@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Turn-Based Chess-like Game</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="app.js"></script>
+    <style>
+        
+    </style>
+</head>
+<body>
+    <div id="container">
+        <h1>Turn-Based Chess-like Game</h1>
+        <div id="game-board"></div>
+        <div id="controls">
+            <label for="character-select">Select Character:</label>
+            <select id="character-select">
+                <!-- Character options will be dynamically added -->
+            </select>
+            <div id="move-buttons">
+                <!-- Move buttons will be dynamically added -->
+            </div>
+            <button id="send-move">Send Move</button>
+        </div>
+        <div id="status"></div>
+    </div>
+
+    <script>
+        const ws = new WebSocket('ws://localhost:8765/A'); // Change 'A' to 'B' for the other player
+
+        ws.onopen = () => {
+            console.log('Connected to WebSocket server');
+            // Request initial game state
+            ws.send(JSON.stringify({ type: 'initialize' }));
+        };
+
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            console.log('Received:', data);
+
+            if (data.type === 'update') {
+                renderBoard(data.board);
+            } else if (data.type === 'error') {
+                alert(data.message);
+            } else if (data.type === 'gameover') {
+                document.getElementById('status').textContent = data.message;
+            }
+        };
+
+        document.getElementById('send-move').addEventListener('click', () => {
+            const character = document.getElementById('character-select').value;
+            const direction = document.querySelector('input[name="direction"]:checked').value;
+            ws.send(JSON.stringify({ type: 'move', character, direction }));
+        });
+
+        function renderBoard(board) {
+            const boardElement = document.getElementById('game-board');
+            boardElement.innerHTML = ''; // Clear existing content
+            board.forEach((row, rowIndex) => {
+                row.forEach((cell, colIndex) => {
+                    const cellElement = document.createElement('div');
+                    cellElement.classList.add('board-cell');
+                    cellElement.textContent = cell || ''; // Display character name or empty
+                    boardElement.appendChild(cellElement);
+                });
+            });
+        }
+
+        function updateCharacterSelect(characters) {
+            const select = document.getElementById('character-select');
+            select.innerHTML = ''; // Clear existing options
+            characters.forEach(character => {
+                const option = document.createElement('option');
+                option.value = character.name;
+                option.textContent = character.name;
+                select.appendChild(option);
+            });
+        }
+
+        function updateMoveButtons() {
+            const directions = ['L', 'R', 'F', 'B', 'FL', 'FR', 'BL', 'BR'];
+            const moveButtonsContainer = document.getElementById('move-buttons');
+            moveButtonsContainer.innerHTML = ''; // Clear existing buttons
+            directions.forEach(direction => {
+                const button = document.createElement('button');
+                button.classList.add('move-button');
+                button.textContent = direction;
+                button.onclick = () => {
+                    document.querySelector(`input[name="direction"][value="${direction}"]`).checked = true;
+                };
+                moveButtonsContainer.appendChild(button);
+            });
+        }
+
+        // Example of how to dynamically add characters and moves
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.type === 'update') {
+                renderBoard(data.board);
+                // Here you would also update character select and move buttons if needed
+                // Example (assuming you get characters info from the server):
+                updateCharacterSelect([{ name: 'A-P1' }, { name: 'A-H1' }, { name: 'A-H2' }]);
+                updateMoveButtons();
+            } else if (data.type === 'error') {
+                alert(data.message);
+            } else if (data.type === 'gameover') {
+                document.getElementById('status').textContent = data.message;
+            }
+        };
+    </script>
+</body>
+</html>
